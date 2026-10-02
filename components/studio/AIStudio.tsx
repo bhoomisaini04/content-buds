@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Check, Copy, RefreshCw, Sparkles } from "lucide-react";
 
 type FormData = {
   brief: string;
@@ -23,6 +24,7 @@ export default function AIStudio() {
   const [error, setError] = useState("");
   const [generatedContent, setGeneratedContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   function updateField(field: keyof FormData, value: string) {
     setFormData((current) => ({
@@ -35,57 +37,77 @@ export default function AIStudio() {
     }
   }
 
-async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  if (!formData.brief.trim() || !formData.audience.trim()) {
-    setError("Please complete the brief and target audience.");
-    return;
-  }
-
-  setError("");
-  setGeneratedContent("");
-  setIsLoading(true);
-
-  try {
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
-
-    const data = (await response.json()) as {
-      content?: string;
-      error?: string;
-    };
-
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to generate content.");
+    if (!formData.brief.trim() || !formData.audience.trim()) {
+      setError("Please complete the brief and target audience.");
+      return;
     }
 
-    if (!data.content?.trim()) {
-      throw new Error("The AI returned an empty response.");
-    }
+    setError("");
+    setGeneratedContent("");
+    setCopied(false);
+    setIsLoading(true);
 
-    setGeneratedContent(data.content);
-  } catch (error) {
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Something went wrong. Please try again."
-    );
-  } finally {
-    setIsLoading(false);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = (await response.json()) as {
+        content?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to generate content.");
+      }
+
+      if (!data.content?.trim()) {
+        throw new Error("The AI returned an empty response.");
+      }
+
+      setGeneratedContent(data.content);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
-}
 
   function handleClear() {
-  setFormData(initialFormData);
-  setError("");
-  setGeneratedContent("");
-}
+    setFormData(initialFormData);
+    setError("");
+    setGeneratedContent("");
+    setCopied(false);
+  }
+
+  async function handleCopy() {
+    if (!generatedContent) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(generatedContent);
+
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      setError("Unable to copy the generated content.");
+    }
+  }
 
   return (
     <section
@@ -109,7 +131,11 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         </div>
 
         <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form
+            id="content-generator-form"
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
             <div>
               <label
                 htmlFor="brief"
@@ -237,59 +263,104 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 
             <div className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row">
               <button
-  type="submit"
-  disabled={isLoading}
-  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-violet-400"
->
-  {isLoading ? (
-    <>
-      <span
-        className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-        aria-hidden="true"
-      />
-      Generating...
-    </>
-  ) : (
-    "Generate Content →"
-  )}
-</button>
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-violet-400"
+              >
+                {isLoading ? (
+                  <>
+                    <span
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      aria-hidden="true"
+                    />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Content →"
+                )}
+              </button>
 
               <button
                 type="button"
                 onClick={handleClear}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Clear
               </button>
             </div>
           </form>
+
           {generatedContent && (
-  <div className="mt-8 border-t border-slate-200 pt-8">
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
-          Generated Content
-        </p>
+            <div className="mt-8 border-t border-slate-200 pt-8">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div>
+                  <div className="flex items-center gap-2 text-violet-600">
+                    <Sparkles size={16} aria-hidden="true" />
 
-        <h3 className="mt-2 text-lg font-semibold text-slate-950">
-          Your content is ready
-        </h3>
-      </div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                      Generated Content
+                    </p>
+                  </div>
 
-      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-        Ready
-      </span>
-    </div>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                    Your content is ready
+                  </h3>
+                </div>
 
-    <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50/50 p-5">
-      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
-        {generatedContent}
-      </p>
-    </div>
+                <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                  Ready
+                </span>
+              </div>
 
-  </div>
-)}
+              <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50/50 p-5 sm:p-6">
+                <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                  {generatedContent}
+                </p>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
+                >
+                  {copied ? (
+                    <>
+                      <Check size={16} aria-hidden="true" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={16} aria-hidden="true" />
+                      Copy
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+  const form = document.getElementById(
+    "content-generator-form"
+  ) as HTMLFormElement | null;
+
+  form?.requestSubmit();
+}}
+                  disabled={isLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={isLoading ? "animate-spin" : ""}
+                    aria-hidden="true"
+                  />
+
+                  {isLoading ? "Regenerating..." : "Regenerate"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
