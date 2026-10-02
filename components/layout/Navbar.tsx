@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+
 const navLinks = [
   { label: "About", href: "#about" },
   { label: "Services", href: "#services" },
@@ -6,13 +11,19 @@ const navLinks = [
 ];
 
 export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <nav
         className="mx-auto flex h-18 max-w-7xl items-center justify-between px-6 lg:px-8"
         aria-label="Main navigation"
       >
-        <a href="#" className="flex items-center gap-2">
+        <a href="#" className="flex items-center gap-2" onClick={closeMenu}>
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-sm font-bold text-white">
             CB
           </span>
@@ -34,13 +45,58 @@ export default function Navbar() {
           ))}
         </div>
 
-        <a
-          href="#contact"
-          className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600"
+        <div className="hidden md:block">
+          <a
+            href="#contact"
+            className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600"
+          >
+            Let&apos;s talk
+          </a>
+        </div>
+
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 md:hidden"
+          onClick={() => setMenuOpen((current) => !current)}
+          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-navigation"
         >
-          Let&apos;s talk
-        </a>
+          {menuOpen ? (
+            <X size={20} aria-hidden="true" />
+          ) : (
+            <Menu size={20} aria-hidden="true" />
+          )}
+        </button>
       </nav>
+
+      {menuOpen && (
+        <div
+          id="mobile-navigation"
+          className="border-t border-slate-200 bg-white px-6 py-5 md:hidden"
+        >
+          <div className="mx-auto flex max-w-7xl flex-col gap-1">
+            {navLinks.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={closeMenu}
+                className="rounded-xl px-4 py-3 text-base font-medium text-slate-700 transition hover:bg-slate-50 hover:text-violet-600"
+              >
+                {link.label}
+              </a>
+            ))}
+
+            <a
+              href="#contact"
+              onClick={closeMenu}
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+            >
+              Let&apos;s talk
+            </a>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
