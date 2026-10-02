@@ -22,6 +22,7 @@ export default function AIStudio() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [error, setError] = useState("");
   const [generatedContent, setGeneratedContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   function updateField(field: keyof FormData, value: string) {
     setFormData((current) => ({
@@ -34,23 +35,51 @@ export default function AIStudio() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
-    if (!formData.brief.trim() || !formData.audience.trim()) {
-      setError("Please complete the brief and target audience.");
-      return;
+  if (!formData.brief.trim() || !formData.audience.trim()) {
+    setError("Please complete the brief and target audience.");
+    return;
+  }
+
+  setError("");
+  setGeneratedContent("");
+  setIsLoading(true);
+
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = (await response.json()) as {
+      content?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to generate content.");
     }
 
-    setError("");
+    if (!data.content?.trim()) {
+      throw new Error("The AI returned an empty response.");
+    }
 
-console.log("Content request:", formData);
-
-// Temporary preview until the AI backend is connected.
-setGeneratedContent(
-  `Your ${formData.contentType.toLowerCase()} for ${formData.audience} will appear here once AI generation is connected.`
-);
+    setGeneratedContent(data.content);
+  } catch (error) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Something went wrong. Please try again."
+    );
+  } finally {
+    setIsLoading(false);
   }
+}
 
   function handleClear() {
   setFormData(initialFormData);
@@ -208,15 +237,27 @@ setGeneratedContent(
 
             <div className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row">
               <button
-                type="submit"
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
-              >
-                Generate Content →
-              </button>
+  type="submit"
+  disabled={isLoading}
+  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-violet-400"
+>
+  {isLoading ? (
+    <>
+      <span
+        className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+        aria-hidden="true"
+      />
+      Generating...
+    </>
+  ) : (
+    "Generate Content →"
+  )}
+</button>
 
               <button
                 type="button"
                 onClick={handleClear}
+                disabled={isLoading}
                 className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
               >
                 Clear
@@ -247,9 +288,6 @@ setGeneratedContent(
       </p>
     </div>
 
-    <p className="mt-3 text-xs text-slate-400">
-      AI generation will be connected in the next backend stage.
-    </p>
   </div>
 )}
         </div>
