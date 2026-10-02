@@ -23,6 +23,7 @@ export default function Navbar() {
         className="mx-auto flex h-18 max-w-7xl items-center justify-between px-6 lg:px-8"
         aria-label="Main navigation"
       >
+        {/* Logo */}
         <a href="#" className="flex items-center gap-2" onClick={closeMenu}>
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-sm font-bold text-white">
             CB
@@ -33,6 +34,7 @@ export default function Navbar() {
           </span>
         </a>
 
+        {/* Desktop navigation */}
         <div className="hidden items-center gap-8 md:flex">
           {navLinks.map((link) => (
             <a
@@ -45,20 +47,24 @@ export default function Navbar() {
           ))}
         </div>
 
+        {/* Desktop CTA */}
         <div className="hidden md:block">
           <a
             href="#contact"
-            className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600"
+            className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white! transition-colors hover:bg-violet-600 hover:text-white!"
           >
             Let&apos;s talk
           </a>
         </div>
 
+        {/* Mobile menu button */}
         <button
           type="button"
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 md:hidden"
           onClick={() => setMenuOpen((current) => !current)}
-          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-label={
+            menuOpen ? "Close navigation menu" : "Open navigation menu"
+          }
           aria-expanded={menuOpen}
           aria-controls="mobile-navigation"
         >
@@ -70,6 +76,7 @@ export default function Navbar() {
         </button>
       </nav>
 
+      {/* Mobile navigation */}
       {menuOpen && (
         <div
           id="mobile-navigation"
@@ -87,10 +94,11 @@ export default function Navbar() {
               </a>
             ))}
 
+            {/* Mobile CTA */}
             <a
               href="#contact"
               onClick={closeMenu}
-              className="mt-3 inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white! transition-colors hover:bg-violet-600 hover:text-white!"
             >
               Let&apos;s talk
             </a>
