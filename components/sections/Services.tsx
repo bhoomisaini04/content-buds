@@ -17,6 +17,12 @@ const services = [
     description:
       "Shape consistent messaging with the right tone, keywords, and positioning for your audience.",
   },
+  {
+  number: "04",
+  title: "SEO Content",
+  description:
+    "Create search-focused content that balances useful writing, clear messaging, and relevant keywords.",
+  },
 ];
 
 export default function Services() {
@@ -43,7 +49,7 @@ export default function Services() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
+        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {services.map((service) => (
             <article
               key={service.number}

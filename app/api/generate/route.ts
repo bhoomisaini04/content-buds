@@ -8,30 +8,25 @@ type GenerateRequest = {
   keywords?: string;
 };
 
-const OLLAMA_URL = "http://127.0.0.1:11434/api/generate";
-const MODEL = "llama3.2";
+const AI_PROVIDER = process.env.AI_PROVIDER || "ollama";
 
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as GenerateRequest;
+const OLLAMA_BASE_URL =
+  process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 
-    const brief = body.brief?.trim();
-    const contentType = body.contentType?.trim();
-    const audience = body.audience?.trim();
-    const tone = body.tone?.trim();
-    const keywords = body.keywords?.trim();
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2";
 
-    if (!brief || !contentType || !audience || !tone) {
-      return NextResponse.json(
-        {
-          error:
-            "Brief, content type, target audience, and tone are required.",
-        },
-        { status: 400 }
-      );
-    }
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL =
+  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
-    const prompt = `
+function buildPrompt({
+  brief,
+  contentType,
+  audience,
+  tone,
+  keywords,
+}: Required<GenerateRequest>) {
+  return `
 You are Content Buds AI, a professional marketing content assistant.
 
 Create useful, polished marketing content using the following brief.
@@ -60,35 +55,128 @@ Instructions:
 - Make the result ready for practical use.
 - Return only the final content, without explaining your process.
 `.trim();
+}
 
-    const ollamaResponse = await fetch(OLLAMA_URL, {
+async function generateWithOllama(prompt: string) {
+  const response = await fetch(
+    `${OLLAMA_BASE_URL}/api/generate`,
+    {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: OLLAMA_MODEL,
         prompt,
         stream: false,
       }),
-    });
+    }
+  );
 
-    if (!ollamaResponse.ok) {
+  if (!response.ok) {
+    throw new Error("Ollama failed to generate content.");
+  }
+
+  const data = (await response.json()) as {
+    response?: string;
+  };
+
+  return data.response?.trim() || "";
+}
+
+async function generateWithGroq(prompt: string) {
+  if (!GROQ_API_KEY) {
+    throw new Error("Groq API key is not configured.");
+  }
+
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Groq API error:", errorText);
+
+    throw new Error("Groq failed to generate content.");
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
+    }>;
+  };
+
+  return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as GenerateRequest;
+
+    const brief = body.brief?.trim();
+    const contentType = body.contentType?.trim();
+    const audience = body.audience?.trim();
+    const tone = body.tone?.trim();
+    const keywords = body.keywords?.trim() || "";
+
+    if (!brief || !contentType || !audience || !tone) {
       return NextResponse.json(
-        { error: "The AI service could not generate content." },
-        { status: 502 }
+        {
+          error:
+            "Brief, content type, target audience, and tone are required.",
+        },
+        { status: 400 }
       );
     }
 
-    const data = (await ollamaResponse.json()) as {
-      response?: string;
-    };
+    const prompt = buildPrompt({
+      brief,
+      contentType,
+      audience,
+      tone,
+      keywords,
+    });
 
-    const generatedContent = data.response?.trim();
+    let generatedContent = "";
+
+    if (AI_PROVIDER === "groq") {
+      generatedContent = await generateWithGroq(prompt);
+    } else if (AI_PROVIDER === "ollama") {
+      generatedContent = await generateWithOllama(prompt);
+    } else {
+      return NextResponse.json(
+        {
+          error: "Unsupported AI provider configuration.",
+        },
+        { status: 500 }
+      );
+    }
 
     if (!generatedContent) {
       return NextResponse.json(
-        { error: "The AI returned an empty response. Please try again." },
+        {
+          error:
+            "The AI returned an empty response. Please try again.",
+        },
         { status: 502 }
       );
     }
@@ -102,7 +190,7 @@ Instructions:
     return NextResponse.json(
       {
         error:
-          "Unable to generate content right now. Please check the AI service and try again.",
+          "Unable to generate content right now. Please try again.",
       },
       { status: 500 }
     );
