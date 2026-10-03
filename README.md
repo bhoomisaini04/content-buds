@@ -2,7 +2,13 @@
 
 Content Buds is a modern AI-powered content creation website built as part of the Web Developer + AI Intern practical assignment.
 
-The project is designed to feel like a real early-stage creative-tech product rather than a static portfolio page. It combines a polished responsive website with an AI Content Studio that turns a user brief into generated marketing content.
+The project is designed to feel like a real early-stage creative-tech product rather than a static portfolio page. It combines a polished, responsive website with an AI Content Studio that turns a user brief into generated marketing content.
+
+## Live Demo
+
+Production deployment:
+
+https://content-buds.vercel.app
 
 ## Features
 
@@ -11,13 +17,15 @@ The project is designed to feel like a real early-stage creative-tech product ra
 - Services section
 - Work / portfolio section
 - AI-powered Content Studio
+- Real AI-generated content
 - Contact form with backend validation
 - Active navigation states
 - Mobile navigation menu
 - Loading, success, validation, empty, and error states
 - Copy and regenerate actions for AI output
 - Server-side API routes
-- Environment-based AI configuration
+- Environment-based AI provider configuration
+- Production deployment on Vercel
 
 ## AI Studio
 
@@ -29,28 +37,43 @@ The AI Studio allows users to provide:
 - Tone
 - Optional keywords
 
-The application then sends the request to a secure backend API route.
+The application sends the request to a secure server-side API route.
 
 The backend:
 
 1. Validates the input
 2. Builds a structured prompt
-3. Sends the prompt to the configured AI model
+3. Sends the prompt to the configured AI provider
 4. Returns the generated content to the frontend
 5. Handles provider failures and empty responses
 
 The generated result can be copied, regenerated, or cleared.
 
-## AI Provider
+## AI Providers
 
-Local development currently uses:
+Content Buds supports environment-based AI provider configuration.
+
+### Production
+
+The deployed application uses:
+
+- Provider: Groq
+- Model: `openai/gpt-oss-120b`
+- Deployment: Vercel
+- API key stored securely as a Vercel environment variable
+
+The Groq API key is used only by the server-side `/api/generate` route and is never exposed to the browser.
+
+### Local Development
+
+Local development can use Ollama:
 
 - Provider: Ollama
 - Model: Llama 3.2
 - Default model name: `llama3.2`
-- Default local endpoint: `http://127.0.0.1:11434`
+- Default endpoint: `http://127.0.0.1:11434`
 
-Ollama runs locally, so no paid API key is required for local development.
+This allows the application to be developed locally without requiring a paid API key.
 
 ## Tech Stack
 
@@ -67,11 +90,18 @@ Ollama runs locally, so no paid API key is required for local development.
 - Next.js App Router API routes
 - Server-side input validation
 - REST-style JSON endpoints
+- Environment-based provider selection
 
 ### AI
 
+- Groq API
+- `openai/gpt-oss-120b` for production
 - Ollama
-- Llama 3.2
+- Llama 3.2 for local development
+
+### Deployment
+
+- Vercel
 
 ### Tooling
 
@@ -83,25 +113,33 @@ Ollama runs locally, so no paid API key is required for local development.
 ## Architecture
 
 ```text
-User
-  |
-  v
-Next.js Frontend
-  |
-  | POST /api/generate
-  v
-Next.js API Route
-  |
-  | structured prompt
-  v
-Ollama
-  |
-  | llama3.2
-  v
-Generated Content
-  |
-  v
-Frontend Result Card
+                         User
+                           |
+                           v
+                    Next.js Frontend
+                           |
+                           | POST /api/generate
+                           v
+                    Next.js API Route
+                           |
+                           | validate input
+                           | build structured prompt
+                           v
+                  AI Provider Selection
+                    /             \
+                   /               \
+                  v                 v
+          Groq (Production)    Ollama (Local)
+                  |                 |
+                  v                 v
+       openai/gpt-oss-120b       llama3.2
+                   \               /
+                    \             /
+                     v           v
+                    Generated Content
+                           |
+                           v
+                  Frontend Result Card
 ```
 
 The contact flow follows a similar server-side pattern:
@@ -141,15 +179,23 @@ content-buds/
 │   │   ├── Hero.tsx
 │   │   ├── Services.tsx
 │   │   └── Work.tsx
-│   └── ...
-└── ...
+│   ├── studio/
+│   └── ui/
+├── data/
+├── lib/
+├── public/
+├── types/
+├── .env.example
+├── .gitignore
+├── package.json
+└── README.md
 ```
 
 ## API Endpoints
 
 ### `POST /api/generate`
 
-Generates content using the configured Ollama model.
+Generates content using the configured AI provider.
 
 Example request:
 
@@ -174,7 +220,7 @@ Example success response:
 The endpoint validates required fields and handles:
 
 - Invalid input
-- Ollama connection failures
+- AI provider connection failures
 - Empty AI responses
 - Unexpected backend errors
 
@@ -200,14 +246,31 @@ The endpoint validates:
 
 ## Environment Variables
 
-Create a `.env.local` file in the project root:
+The application uses environment variables so AI credentials and provider configuration remain outside the source code.
+
+### Production
+
+The Vercel production deployment uses:
 
 ```env
+AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+`GROQ_API_KEY` must be stored as a secret and should never be committed to Git.
+
+### Local Ollama
+
+For local development with Ollama:
+
+```env
+AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.2
 ```
 
-A safe example is included in:
+A safe environment example is included in:
 
 ```text
 .env.example
@@ -230,17 +293,17 @@ cd content-buds
 npm install
 ```
 
-### 3. Install Ollama
+### 3. Configure the AI provider
 
-Install Ollama from the official Ollama distribution for your operating system.
+The application can run locally using Ollama.
 
-Verify the installation:
+Install Ollama and verify the installation:
 
 ```bash
 ollama --version
 ```
 
-### 4. Download the model
+Download Llama 3.2:
 
 ```bash
 ollama pull llama3.2
@@ -252,22 +315,25 @@ Check that the model is available:
 ollama list
 ```
 
-You should see something similar to:
+### 4. Configure environment variables
 
-```text
-llama3.2:latest
-```
-
-### 5. Configure environment variables
-
-Create `.env.local` with:
+Create `.env.local`:
 
 ```env
+AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.2
 ```
 
-### 6. Start the development server
+Alternatively, Groq can be used locally by configuring:
+
+```env
+AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+### 5. Start the development server
 
 ```bash
 npm run dev
@@ -281,7 +347,7 @@ http://localhost:3000
 
 ## Validation
 
-The project can be validated with:
+Run:
 
 ```bash
 npm run lint
@@ -318,29 +384,31 @@ The project includes:
 
 ## Deployment
 
-The Next.js application can be deployed to platforms such as Vercel.
+The application is deployed on Vercel:
 
-However, the current AI configuration uses a local Ollama server:
+https://content-buds.vercel.app
 
-```text
-http://127.0.0.1:11434
+Production AI generation uses Groq rather than a locally running Ollama instance.
+
+The production environment is configured with:
+
+```env
+AI_PROVIDER=groq
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
-A cloud-hosted deployment cannot directly access an Ollama instance running on a developer's local computer.
+The Groq API key is securely configured in Vercel and is not committed to the repository.
 
-For a production deployment, the AI backend must therefore use one of the following approaches:
-
-- A remotely hosted Ollama instance
-- A cloud-accessible open model endpoint
-- A compatible hosted AI provider
-
-The frontend and `/api/generate` architecture are already separated from the model configuration through environment variables, so the AI provider endpoint can be changed without rewriting the frontend.
+The application uses the same `/api/generate` interface regardless of the configured AI provider, allowing the frontend to remain provider-independent.
 
 ## Current Limitations
 
-- AI generation currently depends on a locally running Ollama instance during local development.
 - Contact submissions are validated by the backend but are not currently persisted to a database or sent through an email provider.
-- Authentication and generation history are not implemented because they are outside the core assignment requirements.
+- Authentication is not implemented.
+- AI generation history is not persisted.
+- Ollama requires a locally running Ollama instance when selected for local development.
+
+These features are outside the core requirements of the practical assignment.
 
 ## Future Improvements
 
@@ -352,6 +420,7 @@ Possible extensions include:
 - Generation history
 - User authentication
 - Database-backed contact submissions
+- Email integration
 - Streaming AI responses
 - Usage analytics
 - Automated tests
@@ -360,9 +429,11 @@ Possible extensions include:
 
 GitHub:
 
-```text
 https://github.com/bhoomisaini04/content-buds
-```
+
+## Live Application
+
+https://content-buds.vercel.app
 
 ## Author
 
